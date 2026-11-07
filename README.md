@@ -60,3 +60,4 @@ PayPal smoke test: `docs/smoke-test.md`.
 
 ## Threat model, license
 `docs/threat-model.md` · MIT (`LICENSE`)
+
