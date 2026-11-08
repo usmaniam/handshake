@@ -38,9 +38,10 @@ class GeminiLLM:
         s = settings()
         self.s = s
         from google.genai import types
-        # HttpOptions.timeout is in milliseconds: a slow model must never stall a payment request.
+        # HttpOptions.timeout is in milliseconds. The API rejects deadlines under 10s (400 INVALID_ARGUMENT),
+        # so clamp: a slow model must never stall a payment request, but the value must be one Google accepts.
         self.client = genai.Client(api_key=s.gemini_api_key,
-                                   http_options=types.HttpOptions(timeout=int(s.llm_timeout_s * 1000)))
+                                   http_options=types.HttpOptions(timeout=int(max(s.llm_timeout_s, 10.0) * 1000)))
 
     def json(self, system: str, user: str, schema: type[BaseModel], retries: int = 1):
         from google.genai import types
