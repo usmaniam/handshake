@@ -257,7 +257,7 @@ def _judge(llm, c: Ctx, res: PolicyResult, excerpts: list[str]) -> dict | None:
 def _decide(s: Session, pr: PaymentRequest, c: Ctx, now, llm=None) -> tuple[DecisionRow, PolicyResult]:
     res = evaluate(c)
     ai = None
-    if llm is not None and not c.owner_approved:
+    if llm is not None and not c.owner_approved and settings().llm_judge:
         ex = [m.content[:300] for m in s.scalars(select(Message).where(
             Message.deal_id == pr.deal_id, Message.flagged.is_(True)).limit(3))] if pr.deal_id else []
         ai = _judge(llm, c, res, ex)
