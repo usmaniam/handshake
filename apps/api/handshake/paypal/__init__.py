@@ -22,7 +22,7 @@ class PayPalTransient(Exception):
     """Timeout / 5xx. Safe to retry with the same PayPal-Request-Id."""
 
 
-# PayPal item/batch status -> ledger status (plan section 12.4)
+# PayPal item/batch status -> ledger status
 LEDGER_FROM_PAYPAL = {
     "NEW": "RELEASING", "PENDING": "RELEASING", "PROCESSING": "RELEASING",
     "SUCCESS": "PAID", "SUCCEEDED": "PAID",
