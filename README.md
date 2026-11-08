@@ -8,7 +8,7 @@ owner approves anything risky.
 
 > **Status:** backend (62 tests) and owner console (Next.js) are built and verified end-to-end against a fake payout rail.
 > A real PayPal sandbox payout and its signature-verified webhook have been tested end to end on the deployed API (Vercel + Neon).
-> The Gemini calls have not been verified against the live API. See "Status" below.
+> The Gemini verifier and AI judge were checked live (`apps/api/scripts/check_gemini.py`, 7/7 checks). See "Status" below.
 
 ## What it is (and isn't)
 Conditional release, **not escrow or custody**. Funds stay in the owner's PayPal balance until release; the "hold" is a
@@ -44,7 +44,7 @@ ADMIN_TOKEN=dev make demo                         # plays buyer + seller agents 
 ```
 `PAYOUT_RAIL=fake` settles instantly and never calls PayPal. Use `make reset` (random keys, printed once) anywhere real.
 Production: `alembic upgrade head` (uses `DATABASE_URL_UNPOOLED`), deploy `apps/api` as a Vercel project.
-PayPal smoke test: `docs/smoke-test.md`.
+PayPal smoke test: `docs/smoke-test.md`. Gemini live check: `cd apps/api && GEMINI_API_KEY=... python scripts/check_gemini.py`.
 
 ## Status
 | Area | State |
@@ -53,7 +53,7 @@ PayPal smoke test: `docs/smoke-test.md`.
 | Real sandbox payout | **Passed**: a $1.00 payout reached SUCCESS in about 32s (`docs/smoke-test.md`) |
 | Verified webhook on the deployed API | **Passed**: PayPal's event log shows `PAYOUTS-ITEM.SUCCEEDED` and batch events delivered with Success (2xx) on 2026-11-08 |
 | Deployed on Vercel (API + console) with Neon Postgres | **Passed**: demo scenarios run over HTTP against the live API; `/health/db` ok |
-| Gemini verifier / judge | Implemented, **not verified against live Gemini**; model IDs from the plan are unverified. Calls have an 8s timeout (an earlier version without one made a payment request hang until Vercel's 60s limit). The AI payment review is opt-in (`LLM_JUDGE=on`) and off by default |
+| Gemini verifier / judge | **Checked live on 2026-11-08** with `gemini-3.5-flash-lite` (thinking level low): 7/7 checks passed, 0.7-1.5s per call. Covers an honest delivery passing, a wrong delivery not passing, injected instructions not flipping the verdict, stable verdicts over 3 runs, and a valid AI-judge result. `gemini-3.8-flash` and `gemini-3.1-flash-lite` were also available but returned 503/504 or were slow under the same test. Calls have a 12s timeout (Google rejects under 10s). The AI payment review is opt-in (`LLM_JUDGE=on`) and off by default |
 | Owner console (Next.js, AG Grid ledger, approvals, deal timeline, red-team lab, settings) | Done; checked in headless Chromium at desktop and 390px widths (`docs/screens/`). Plain CSS, not Tailwind. Keyboard and screen-reader support built in but not audited with assistive tech |
 | Buyer agent (plain English to validated terms) and LLM-phrased seller modes | Built (`handshake/agents.py`, `demo_scenarios.py --llm`), unit-tested with a fake model; **not run against live Gemini**. Wording falls back to canned text on any failure, so behaviour stays scripted |
 | Deploy guide, demo runbook | `docs/deploy.md`, `docs/demo-script.md` (untested on real Vercel) |
