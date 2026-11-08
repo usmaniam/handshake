@@ -1,10 +1,10 @@
-"""Day-1 smoke test (plan section 12.5). Run with your sandbox credentials:
+"""PayPal sandbox smoke test. Run with your sandbox credentials:
 
     cd apps/api && PAYPAL_OWNER_CLIENT_ID=... PAYPAL_OWNER_SECRET=... \
         python scripts/smoke_paypal.py vendor-sandbox@example.com [minutes_to_poll]
 
 Sends ONE $1.00 sandbox payout from Maya's business account, then polls until it settles or time runs out.
-Paste the output into docs/smoke-test.md.
+Record the output in docs/smoke-test.md.
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ def main() -> int:
                            currency="USD", note="Handshake smoke test", sender_item_id=sbid[:63])
     except (PayPalError, PayPalTransient) as e:
         print("PAYOUT FAILED TO CREATE:", e, getattr(e, "body", ""))
-        print("=> decision gate: fall back to the Payouts simulator path and say so in the submission")
+        print("=> fall back to the Payouts simulator path and say so clearly in the submission")
         return 1
     print(f"created batch {r['batch_id']} status={r['batch_status']} sender_batch_id={sbid}")
     t0, last = time.time(), None
@@ -40,7 +40,7 @@ def main() -> int:
         if j["batch_status"] in ("SUCCESS", "DENIED", "CANCELED"):
             break
         time.sleep(10)
-    print("RESULT:", last, "=> proceed" if last and last[0] == "SUCCESS" else "=> use simulator/honest PENDING (see plan 12.5)")
+    print("RESULT:", last, "=> proceed" if last and last[0] == "SUCCESS" else "=> use the simulator path and say so clearly")
     return 0
 
 
