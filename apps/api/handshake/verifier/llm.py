@@ -37,16 +37,22 @@ class GeminiLLM:
         from google import genai  # lazy: not needed for tests/bench
         s = settings()
         self.s = s
-        self.client = genai.Client(api_key=s.gemini_api_key)
+        from google.genai import types
+        # HttpOptions.timeout is in milliseconds: a slow model must never stall a payment request.
+        self.client = genai.Client(api_key=s.gemini_api_key,
+                                   http_options=types.HttpOptions(timeout=int(s.llm_timeout_s * 1000)))
 
-    def json(self, system: str, user: str, schema: type[BaseModel], retries: int = 2):
+    def json(self, system: str, user: str, schema: type[BaseModel], retries: int = 1):
         from google.genai import types
         cfg: dict = dict(system_instruction=system, temperature=0,
                          response_mime_type="application/json", response_schema=schema)
         if self.s.gemini_thinking_level:
             cfg["thinking_config"] = types.ThinkingConfig(thinking_level=self.s.gemini_thinking_level)
         last: Exception | None = None
+        deadline = time.monotonic() + self.s.llm_timeout_s * 1.5  # total budget across retries
         for i in range(retries + 1):
+            if i and time.monotonic() > deadline:
+                break
             try:
                 r = self.client.models.generate_content(
                     model=self.s.gemini_model, contents=user, config=types.GenerateContentConfig(**cfg))
@@ -55,7 +61,7 @@ class GeminiLLM:
                 return schema.model_validate_json(r.text)  # always re-validate
             except Exception as e:  # noqa: BLE001
                 last = e
-                time.sleep(0.5 * 2 ** i)
+                time.sleep(0.3)
         raise LLMError(str(last))
 
 
