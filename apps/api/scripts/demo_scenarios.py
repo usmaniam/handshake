@@ -13,7 +13,7 @@ import os
 import sys
 import time
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import httpx
 
@@ -47,7 +47,7 @@ def terms(qty=200, price="0.42", **kw) -> dict:
 
 def ship(tracking: str, qty: int, sku: str = "mailer-12x9x3") -> None:
     call("POST", "/mock-carrier", "admin", {"tracking": tracking, "status": "DELIVERED", "items": [{"sku": sku, "qty": qty}],
-                                            "delivered_at": datetime.utcnow().isoformat()})
+                                            "delivered_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat()})
 
 
 def agree(vendor: str, t: dict, text: str) -> str:
