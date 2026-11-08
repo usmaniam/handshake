@@ -15,6 +15,15 @@ Conditional release, **not escrow or custody**. Funds stay in the owner's PayPal
 budget reservation plus a release gate. Sandbox prototype. Seller protection is partial.
 
 ## How it works
+```mermaid
+flowchart LR
+  A[Agents negotiate] --> B[Terms accepted and locked] --> C[Policy check, budget reserved]
+  C --> D[Seller delivers] --> E{Verified against the agreement?}
+  E -- yes --> F[Release check] --> G[PayPal Payout] --> H[Webhook confirms: Paid]
+  E -- no --> I[Held for the owner]
+  C -. refused .-> X[Blocked before any money is reserved]
+```
+
 `NEGOTIATING -> AGREED -> RESERVED -> DELIVERY_CLAIMED -> VERIFYING -> RELEASE_CHECK -> RELEASING -> PAID`
 (plus `BLOCKED_AT_COMMIT`, `OWNER_REVIEW`, `HELD_DISPUTED`, `EXPIRED`, `CANCELLED`, `PAYOUT_*`).
 
@@ -27,6 +36,14 @@ budget reservation plus a release gate. Sandbox prototype. Seller protection is 
   `RELEASING` is entered only via a compare-and-set; every transition is written to a hash-chained audit log.
 - **PayPal:** Payouts (one item per batch, `sender_batch_id` = `PayPal-Request-Id`), signature-verified webhooks on the raw
   body, token caching with one refresh retry, status mapping, polling fallback (`/v1/owner/sweep`).
+
+## Screenshots
+Owner console running against live demo data (`docs/screens/`).
+
+![Today: budget, approvals waiting, deals with a parcel-style progress line](docs/screens/today.png)
+![A deal where the seller tried to change the price after agreeing](docs/screens/deal-terms-drift.png)
+![Ledger with the "why Handshake decided this" panel](docs/screens/ledger-why.png)
+![Red-team lab: a naive agent versus Handshake](docs/screens/red-team-lab.png)
 
 ## Benchmark (`python -m handshake.bench`)
 Guarded = real code path with a fake payout rail (no PayPal, LLM off, deterministic). Unguarded = a *modelled* naive agent
@@ -56,8 +73,18 @@ PayPal smoke test: `docs/smoke-test.md`. Gemini live check: `cd apps/api && GEMI
 | Gemini verifier / judge | **Checked live on 2026-11-08** with `gemini-3.5-flash-lite` (thinking level low): 7/7 checks passed, 0.7-1.5s per call. Covers an honest delivery passing, a wrong delivery not passing, injected instructions not flipping the verdict, stable verdicts over 3 runs, and a valid AI-judge result. `gemini-3.8-flash` and `gemini-3.1-flash-lite` were also available but returned 503/504 or were slow under the same test. Calls have a 12s timeout (Google rejects under 10s). The AI payment review is opt-in (`LLM_JUDGE=on`) and off by default |
 | Owner console (Next.js, AG Grid ledger, approvals, deal timeline, red-team lab, settings) | Done; checked in headless Chromium at desktop and 390px widths (`docs/screens/`). Plain CSS, not Tailwind. Keyboard and screen-reader support built in but not audited with assistive tech |
 | Buyer agent (plain English to validated terms) and LLM-phrased seller modes | Built (`handshake/agents.py`, `demo_scenarios.py --llm`), unit-tested with a fake model; **not run against live Gemini**. Wording falls back to canned text on any failure, so behaviour stays scripted |
-| Deploy guide, demo runbook | `docs/deploy.md`, `docs/demo-script.md` (untested on real Vercel) |
-| MCP server, Invoicing, partial release | Cut per plan |
+| Deploy guide, demo runbook | `docs/deploy.md` (used to deploy the live demo), `docs/demo-script.md` |
+| MCP server, PayPal Invoicing, partial release | Not built (out of scope for this prototype) |
+
+## Known limitations
+- **Sandbox only.** No real money has ever moved. It is conditional release, not escrow; it does not hold funds.
+- **Single owner, one static admin token** protects the console (kept in `sessionStorage`). No user accounts, roles or SSO.
+- **No rate limiting** on the API, and `/docs` and the mock carrier lookup are public.
+- **The carrier is a mock.** Physical-goods verification trusts the mock carrier's records; a real carrier integration is not built. Delivery for digital work is checked by file rules plus an optional Gemini review.
+- **Payments to a verified vendor that are inside your limits can't be told apart from unwanted ones** (benchmark case A9). Velocity and budget limits bound that loss; they do not prevent it.
+- **The unguarded benchmark baseline is modelled**, not measured against a real product, and the guarded run uses a fake payout rail.
+- **No scheduled job.** Overdue deals expire and missed webhooks are recovered when someone runs "Check PayPal for updates".
+- The audit log is tamper-*evident* (hash chain), not tamper-proof: someone with database access could rewrite it and its hashes together.
 
 ## Threat model, license
 `docs/threat-model.md` · MIT (`LICENSE`)
