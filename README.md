@@ -7,8 +7,8 @@ was agreed. A deterministic policy engine checks every commit and release, a two
 owner approves anything risky.
 
 > **Status:** backend (62 tests) and owner console (Next.js) are built and verified end-to-end against a fake payout rail.
-> The PayPal sandbox payout smoke test has **passed**; the verified webhook on a deployed API has **not** been tested yet, and the Gemini
-> calls have never run against the live API. See "Status" below.
+> A real PayPal sandbox payout and its signature-verified webhook have been tested end to end on the deployed API (Vercel + Neon).
+> The Gemini calls have not been verified against the live API. See "Status" below.
 
 ## What it is (and isn't)
 Conditional release, **not escrow or custody**. Funds stay in the owner's PayPal balance until release; the "hold" is a
@@ -51,8 +51,9 @@ PayPal smoke test: `docs/smoke-test.md`.
 |---|---|
 | Policy, state machine, verifier, audit, idempotency, PayPal adapter, webhooks, mock carrier, benchmark | Done, tested |
 | Real sandbox payout | **Passed**: a $1.00 payout reached SUCCESS in about 32s (`docs/smoke-test.md`) |
-| Verified webhook on the deployed API | **Not yet tested** (needs the Vercel deploy; see `docs/deploy.md`) |
-| Gemini verifier / judge | Implemented; **not exercised against the live API** (no network here); model IDs from the plan, unverified |
+| Verified webhook on the deployed API | **Passed**: PayPal's event log shows `PAYOUTS-ITEM.SUCCEEDED` and batch events delivered with Success (2xx) on 2026-11-08 |
+| Deployed on Vercel (API + console) with Neon Postgres | **Passed**: demo scenarios run over HTTP against the live API; `/health/db` ok |
+| Gemini verifier / judge | Implemented, **not verified against live Gemini**; model IDs from the plan are unverified. Calls have an 8s timeout (an earlier version without one made a payment request hang until Vercel's 60s limit). The AI payment review is opt-in (`LLM_JUDGE=on`) and off by default |
 | Owner console (Next.js, AG Grid ledger, approvals, deal timeline, red-team lab, settings) | Done; checked in headless Chromium at desktop and 390px widths (`docs/screens/`). Plain CSS, not Tailwind. Keyboard and screen-reader support built in but not audited with assistive tech |
 | Buyer agent (plain English to validated terms) and LLM-phrased seller modes | Built (`handshake/agents.py`, `demo_scenarios.py --llm`), unit-tested with a fake model; **not run against live Gemini**. Wording falls back to canned text on any failure, so behaviour stays scripted |
 | Deploy guide, demo runbook | `docs/deploy.md`, `docs/demo-script.md` (untested on real Vercel) |
@@ -60,4 +61,3 @@ PayPal smoke test: `docs/smoke-test.md`.
 
 ## Threat model, license
 `docs/threat-model.md` · MIT (`LICENSE`)
-
