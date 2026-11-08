@@ -16,6 +16,8 @@ class Settings:
     gemini_model_lite: str = ""
     gemini_thinking_level: str = ""
     llm_verifier: str = "auto"  # auto | on | off
+    llm_judge: bool = False     # AI second opinion on payments; opt-in (LLM_JUDGE=on)
+    llm_timeout_s: float = 8.0
     database_url: str = ""
     admin_token: str = ""
     allowed_origins: list[str] = field(default_factory=list)
@@ -37,6 +39,8 @@ def settings() -> Settings:
         gemini_model_lite=e("GEMINI_MODEL_LITE", "gemini-3.5-flash-lite"),
         gemini_thinking_level=e("GEMINI_THINKING_LEVEL", ""),
         llm_verifier=e("LLM_VERIFIER", "auto"),
+        llm_judge=e("LLM_JUDGE", "") == "on",
+        llm_timeout_s=float(e("LLM_TIMEOUT_S", "8")),
         database_url=e("DATABASE_URL", "sqlite:///./handshake.db"),
         admin_token=e("ADMIN_TOKEN", ""),
         allowed_origins=[o for o in e("ALLOWED_ORIGINS", "http://localhost:3000").split(",") if o],
