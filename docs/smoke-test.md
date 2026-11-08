@@ -1,4 +1,4 @@
-# PayPal sandbox smoke test (plan 12.5)
+# PayPal sandbox smoke test
 
 Status: **All checks passed (2026-11-08).** A real sandbox payout was created, settled, and its webhook was delivered and verified on the deployed API.
 
@@ -31,12 +31,12 @@ Status: **All checks passed (2026-11-08).** A real sandbox payout was created, s
 | Stable over 3 runs | Pass (0.7-0.9s) | Pass (1.3-4.5s) |
 | AI judge valid output | Pass, risk medium | Pass, risk medium |
 
-`gemini-3.8-flash` (the original plan model) is available to the key but returned 503 UNAVAILABLE and 504 DEADLINE_EXCEEDED under the same test, so the default is `gemini-3.5-flash-lite`.
+`gemini-3.8-flash` (the original choice) is available to the key but returned 503 UNAVAILABLE and 504 DEADLINE_EXCEEDED under the same test, so the default is `gemini-3.5-flash-lite`.
 
 ## Issues found and fixed during deployment
 - `pip install -e .` failed (setuptools found several top-level folders). Fixed in `pyproject.toml`.
 - Commit requests hung until Vercel's 60s limit when `GEMINI_API_KEY` was set: the Gemini call had no timeout. Fixed with a request timeout and by making the AI payment review opt-in (`LLM_JUDGE=on`). Deterministic checks decide every payment either way.
 - The first timeout fix (8s) made every Gemini call fail: Google rejects request deadlines under 10s. Found by the live check; the default is now 12s and the code never sends less than 10s.
-- The plan's model `gemini-3.8-flash` returned 503/504 under test; switched to `gemini-3.5-flash-lite`.
+- The original model `gemini-3.8-flash` returned 503/504 under test; switched to `gemini-3.5-flash-lite`.
 
 Decision gate: passed. A real sandbox payout was created, so the demo shows a real payout instead of the simulator path.
