@@ -1,0 +1,12 @@
+{
+  "name": "handshake-record-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "record": "node record-demo.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.65.0"
+  }
+}
