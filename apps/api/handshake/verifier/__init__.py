@@ -155,7 +155,10 @@ def verify_delivery(terms: Any, proof: dict, shipment: Any, consumed: bool, deli
             verdict = r.verdict
             if r.injection_suspected or r.confidence < 0.7:
                 verdict = REVIEW if verdict == PASS else verdict
-                reasons.append("LLM flagged injection or low confidence")
+                if r.injection_suspected:
+                    reasons.append("The AI reviewer saw text in the delivery that tries to give it instructions")
+                if r.confidence < 0.7:
+                    reasons.append("The AI reviewer was not confident enough to approve")
             if r.verdict != PASS:
                 reasons += [f"{x.criterion}: {x.evidence}" for x in r.criteria if not x.met]
             if r.injection_suspected:
@@ -167,7 +170,7 @@ def verify_delivery(terms: Any, proof: dict, shipment: Any, consumed: bool, deli
     if inj_local and verdict == PASS:
         verdict = REVIEW
     if inj_local:
-        reasons.append("deliverable contains instruction-like text (prompt injection suspected)")
+        reasons.append("The delivery contains text that tries to give instructions to an AI (prompt injection)")
     if verdict not in (PASS, FAIL, REVIEW) or (det != PASS and verdict == PASS):
         verdict = det if det != PASS else REVIEW  # never looser than deterministic
     return {"verdict": verdict, "deterministic": {"verdict": det, "checks": checks},
