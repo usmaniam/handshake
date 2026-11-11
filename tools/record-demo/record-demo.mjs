@@ -43,7 +43,10 @@ const pick = {
   blocked: deals.find((d) => d.state === "BLOCKED_AT_COMMIT"),
   drift: deals.find((d) => d.state === "HELD_DISPUTED" && drift(d)),
 };
-const missing = Object.entries(pick).filter(([, v]) => !v).map(([k]) => k);
+// Optional: a delivery the AI reviewer (not the fixed checks) stopped. Created by demo_scenarios.py s7.
+pick.aiFail = deals.find((d) => d.state === "HELD_DISPUTED" && d.verification?.llm?.status === "ok" && d.verification?.verdict === "FAIL");
+const missing = Object.entries(pick).filter(([k, v]) => !v && k !== "aiFail").map(([k]) => k);
+if (!pick.aiFail) console.warn("No AI-reviewed failed delivery found: the AI segment will be skipped. Run: PYTHONPATH=. python scripts/demo_scenarios.py s7");
 if (missing.length) {
   console.error(`Missing demo deals: ${missing.join(", ")}.\nRun the demo scenarios first (apps/api: PYTHONPATH=. python scripts/demo_scenarios.py).`);
   process.exit(3);
@@ -131,7 +134,7 @@ async function openDeal(id) {
 try {
   // 1. Sign in ------------------------------------------------------------------------------------------
   await page.goto(CONSOLE, { waitUntil: "networkidle" });
-  await say("Handshake: agents negotiate the deal. Handshake pays when it's delivered.", 3800);
+  await say("Handshake: agents negotiate the deal. Handshake pays when it's delivered.", 3400);
   await click(page.getByLabel("Admin token"));
   await page.keyboard.type(TOKEN, { delay: 35 });
   await click(page.getByRole("button", { name: "Sign in" }));
@@ -139,9 +142,8 @@ try {
   await hush();
 
   // 2. Today --------------------------------------------------------------------------------------------
-  await say("Maya runs a small shop. Her AI agents buy for her, but never hold her PayPal credentials.", 4200);
   await moveTo(page.locator(".bar").first());
-  await say("Her budget is split into paid out, reserved for open deals, and still available.", 3800);
+  await say("Maya runs a small shop. Her AI agents buy for her, but never hold her PayPal credentials.", 4400);
   await hush();
 
   // 3. The honest deal ----------------------------------------------------------------------------------
@@ -160,14 +162,26 @@ try {
   // 5. Hostile deposit ----------------------------------------------------------------------------------
   await openDeal(pick.blocked.id);
   await reveal(page.getByRole("heading", { name: "Conversation" }), "start");
-  await say("After agreeing, this seller pushed a deposit to a different account. Flagged and refused.", 4600);
+  await say("After agreeing, this seller pushed a deposit to a different account. Flagged and refused.", 4200);
   await hush();
 
   // 6. Terms drift --------------------------------------------------------------------------------------
   await openDeal(pick.drift.id);
   await moveTo(page.locator(".banner.stop").first());
-  await say("The seller raised the price after agreeing. Handshake ignores it and pays only what was agreed.", 4800);
+  await say("The seller raised the price after agreeing. Handshake ignores it and pays only what was agreed.", 4400);
   await hush();
+
+  // 6b. The AI reviewer ---------------------------------------------------------------------------------
+  if (pick.aiFail) {
+    await openDeal(pick.aiFail.id);
+    await reveal(page.getByRole("heading", { name: "Delivery checks" }), "start");
+    await say("A designer's files pass every fixed check: the right count and the right file types.", 4400);
+    const flags = page.locator(".banner.review");
+    const nf = await flags.count();
+    if (nf) await reveal(flags.nth(Math.floor(nf / 2)), "center");   // centre the group so the caption never covers it
+    await say("But Gemini reads the work. The colour and the name don't match the agreement, and it spots hidden instructions telling it to approve.", 6600);
+    await hush();
+  }
 
   // 7. Approvals ----------------------------------------------------------------------------------------
   await nav("Approvals");
@@ -179,7 +193,7 @@ try {
     await say("A $210 order is over Maya's $100 limit, so it waits for her approval.", 3600);
     await click(approve);
     await page.getByText("all caught up").waitFor({ timeout: 20000 });
-    await say("One tap, and the budget is reserved. Approval never overrides a block.", 3600);
+    await say("One tap, and the budget is reserved. Approval never overrides a block.", 3000);
   } else {
     await say("Anything over Maya's limit waits here for her approval, from her phone if she likes.", 4000);
   }
@@ -189,6 +203,10 @@ try {
   await nav("Ledger");
   await page.waitForSelector(".ag-row");
   await sleep(600);
+  await say("The ledger runs on AG Grid: every request an agent made, sortable and searchable.", 3000, true);
+  await click(page.getByLabel("Search the ledger"));
+  await page.keyboard.type("Blocked", { delay: 110 });     // AG Grid quick filter, live
+  await sleep(1300);
   await click(page.locator(".ag-row", { hasText: "Blocked" }).first().locator(".ag-cell").first());
   await page.waitForSelector(".drawer .checks");
   await reveal(page.locator(".drawer .checks li", { hasText: "Blocked" }).first(), "center");
@@ -201,9 +219,9 @@ try {
   await click(page.getByRole("button", { name: /Run the scenarios|Run again/ }));
   await page.waitForSelector(".versus .vbar", { timeout: 60000 });
   await sleep(600);
-  await say("We replay 14 scenarios against a naive agent. Without Handshake it loses $1,052. With it, $150.", 5200);
+  await say("We replay 14 scenarios against a naive agent. Without Handshake it loses $1,052. With it, $150.", 4800);
   await reveal(page.locator(".versus .name", { hasText: "A9." }).first(), "center");
-  await say("That $150 is ten small payments to a verified vendor. We cap it, and we show it.", 4400);
+  await say("That $150 is ten small payments to a verified vendor. We cap it, and we show it.", 3800);
   await hush();
 
   // 10. Close -------------------------------------------------------------------------------------------
