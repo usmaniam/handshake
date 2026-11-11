@@ -29,11 +29,11 @@ export default function Ledger() {
   const cols = useMemo<ColDef<LedgerRow>[]>(() => [
     { headerName: "When", field: "ts", valueFormatter: (p) => when(p.value), width: 150, sort: "desc" },
     { headerName: "Vendor", field: "vendor", valueFormatter: (p) => p.value ?? "Not tied to a deal", minWidth: 170, flex: 1 },
-    { headerName: "Type", field: "phase", valueFormatter: (p) => PHASE[p.value] ?? p.value, width: 140 },
-    { headerName: "Amount", field: "amount", valueFormatter: (p) => money(p.value), type: "rightAligned", width: 120, comparator: (a, b) => Number(a) - Number(b) },
-    { headerName: "Decision", field: "decision", width: 170,
+    { headerName: "Type", field: "phase", valueFormatter: (p) => PHASE[p.value] ?? p.value, getQuickFilterText: (p) => PHASE[p.value] ?? p.value, width: 140 },
+    { headerName: "Amount", field: "amount", valueFormatter: (p) => money(p.value), getQuickFilterText: (p) => money(p.value), type: "rightAligned", width: 120, comparator: (a, b) => Number(a) - Number(b) },
+    { headerName: "Decision", field: "decision", width: 170, getQuickFilterText: (p) => DEC[p.value]?.text ?? p.value,
       cellRenderer: (p: { value: string }) => <span className={`tag ${DEC[p.value]?.cls ?? "quiet"}`}>{DEC[p.value]?.text ?? p.value}</span> },
-    { headerName: "Payout", field: "payout_status", width: 190, valueFormatter: (p) => (p.value ? stateInfo(p.value).label : "-") },
+    { headerName: "Payout", field: "payout_status", width: 190, valueFormatter: (p) => (p.value ? stateInfo(p.value).label : "-"), getQuickFilterText: (p) => (p.value ? stateInfo(p.value).label : "") },
     { headerName: "PayPal batch", field: "paypal_batch_id", valueFormatter: (p) => p.value ?? "-", minWidth: 190 },
   ], []);
 
