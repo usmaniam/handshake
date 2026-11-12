@@ -6,13 +6,47 @@ A deal layer for agent-to-agent commerce on PayPal. Agents negotiate terms; Hand
 was agreed. A deterministic policy engine checks every commit and release, a two-stage verifier checks the work, and the
 owner approves anything risky.
 
-> **Status:** backend (62 tests) and owner console (Next.js) are built and verified end-to-end against a fake payout rail.
+> **Status:** backend (62 tests) and owner console (Next.js) are built and verified end-to-end against a payout rail.
 > A real PayPal sandbox payout and its signature-verified webhook have been tested end to end on the deployed API (Vercel + Neon).
 > The Gemini verifier and AI judge were checked live (`apps/api/scripts/check_gemini.py`, 7/7 checks). See "Status" below.
 
 ## What it is (and isn't)
 Conditional release, **not escrow or custody**. Funds stay in the owner's PayPal balance until release; the "hold" is a
 budget reservation plus a release gate. Sandbox prototype. Seller protection is partial.
+
+## Tools and technologies
+
+### PayPal developer platform (sandbox)
+| PayPal tool | What it does in Handshake |
+|---|---|
+| **OAuth 2.0 API** (`/v1/oauth2/token`) | Authenticates the sandbox REST app. Tokens are cached, with one refresh retry. |
+| **Payouts API** (`/v1/payments/payouts`) | Releases payment to the vendor or contractor only after delivery is verified. One item per batch; `sender_batch_id` doubles as `PayPal-Request-Id` so retries can't double-pay. The payee and amount always come from the locked deal, never from the agent. |
+| **Payouts status API** (`/v1/payments/payouts/{batch_id}`) | Polling fallback that recovers deals if a webhook is missed (`/v1/owner/sweep`). |
+| **Webhooks + Verify Webhook Signature API** (`/v1/notifications/verify-webhook-signature`) | Confirms `PAYMENT.PAYOUTS-ITEM.*` and batch events on the raw request body, then moves the deal to Paid. A failed signature returns 400. |
+| **Sandbox accounts** | Owner (business), vendor and contractor. A real $1.00 sandbox payout reached SUCCESS in about 32s and its webhook was delivered and verified on the deployed API (`docs/smoke-test.md`). |
+
+### AI: Google Gemini (`gemini-3.5-flash-lite`, `google-genai` SDK)
+- **Delivery verifier:** checks digital-work deliveries against the acceptance criteria locked into the deal. Output is schema-constrained JSON (`PASS` / `FAIL` / `NEEDS_REVIEW`, with evidence per criterion).
+- **Prompt-injection defense:** the seller's deliverable is treated as untrusted data. Injected "approve this" text is flagged (`injection_suspected`) and cannot flip the verdict.
+- **Optional AI payment judge** (`LLM_JUDGE=on`): a plain-English risk review of a payment (risk level, pressure-language signals). It can only escalate a decision, never loosen it.
+- **Buyer and seller demo agents** (`handshake/agents.py`): the buyer turns a plain-English need into validated terms; seller agents phrase the red-team scenarios. Built and unit-tested; not yet run against live Gemini.
+
+**How PayPal and AI fit together:** the AI can only make a payment stricter, never approve one. A deterministic policy engine makes the final decision, and any AI error, timeout or empty response fails closed to owner review. PayPal Payouts fires only when both the policy engine and the verifier agree.
+
+### Sponsor integration: AG Grid
+**AG Grid Community** (`ag-grid-community` and `ag-grid-react` v36) powers the owner console's **Ledger**, the audit view of every payment request an agent made and what Handshake decided (`apps/web/app/ledger/page.tsx`):
+- Themed with `themeQuartz.withParams` to match the console's design system.
+- One quick-filter search box across vendor, amount, decision and payout status; `getQuickFilterText` matches the labels people read ("Needed approval") rather than raw enum values.
+- `getRowId` keeps selection and scroll position stable while the ledger auto-refreshes every 8 seconds.
+- Custom cell renderer for color-coded decision tags, and a numeric comparator for amount sorting.
+- Row click opens a "why Handshake decided this" drawer showing the policy rules behind that decision.
+
+### Other stack
+- **Backend:** Python, FastAPI, SQLAlchemy, Alembic, Pydantic, httpx
+- **Database:** Postgres (Neon in production)
+- **Frontend:** Next.js, React, TypeScript, plain CSS
+- **Deployment:** Vercel (API and console)
+- **Testing:** pytest (62 tests) plus a benchmark harness (`python -m handshake.bench`)
 
 ## How it works
 ```mermaid
